@@ -38,6 +38,11 @@
 #ifdef ENABLE_DRUN
 /** #Mode object representing the desktop menu run dialog. */
 extern Mode drun_mode;
+extern Mode drun_games_mode;
+extern Mode drun_utils_mode;
+extern Mode drun_network_mode;
+extern Mode drun_media_mode;
+extern Mode drun_text_mode;
 #endif // ENABLE_DRUN
 /**@}*/
 #endif // ROFI_MODE_DRUN_H

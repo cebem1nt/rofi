@@ -25,6 +25,7 @@
  *
  */
 
+#include "mode.h"
 #define G_LOG_DOMAIN "Modes.DRun"
 #include "config.h"
 /** The log domain of this dialog. */
@@ -1347,6 +1348,53 @@ static int drun_mode_init(Mode *sw) {
   pd->completer = NULL;
   return TRUE;
 }
+
+static int _drun_custom_mode_init(Mode *sw, char *categories) {
+  if (mode_get_private_data(sw) != NULL) {
+    return TRUE;
+  }
+
+  DRunModePrivateData *pd = g_malloc0(sizeof(*pd));
+  pd->disabled_entries =
+      g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+  mode_set_private_data(sw, (void *)pd);
+  // current desktop
+  const char *current_desktop = g_getenv("XDG_CURRENT_DESKTOP");
+  pd->current_desktop_list =
+      current_desktop ? g_strsplit(current_desktop, ":", 0) : NULL;
+
+  pd->show_categories = g_strsplit(categories, ",", 0);
+  pd->exclude_categories = g_strsplit("", ",", 0);
+
+  drun_mode_parse_entry_fields();
+  drun_mode_parse_display_format();
+  get_apps(pd);
+
+  pd->completer = NULL;
+  return TRUE;
+}
+
+static int drun_games_mode_init(Mode *sw) {
+  return _drun_custom_mode_init(sw, "Game");
+}
+
+static int drun_utils_mode_init(Mode *sw) {
+  return _drun_custom_mode_init(sw, "System,Utility,Monitor");
+}
+
+static int drun_network_mode_init(Mode *sw) {
+  return _drun_custom_mode_init(sw, "Chat,Network");
+}
+
+static int drun_media_mode_init(Mode *sw) {
+  return _drun_custom_mode_init(sw, "Audio,Video,Player");
+}
+
+static int drun_text_mode_init(Mode *sw) {
+  return _drun_custom_mode_init(sw, "Development,Ide,Office");
+}
+
+
 static void drun_entry_clear(DRunModeEntry *e) {
   if (e == NULL) {
     return;
@@ -1721,5 +1769,85 @@ Mode drun_mode = {.name = "drun",
                   .private_data = NULL,
                   .free = NULL,
                   .type = MODE_TYPE_SWITCHER};
+
+Mode drun_games_mode = {.name = "drun-games",
+                  .cfg_name_key = "display-drun-games",
+                  ._init = drun_games_mode_init,
+                  ._get_num_entries = drun_mode_get_num_entries,
+                  ._result = drun_mode_result,
+                  ._destroy = drun_mode_destroy,
+                  ._token_match = drun_token_match,
+                  ._get_message = drun_get_message,
+                  ._get_completion = drun_get_completion,
+                  ._get_display_value = _get_display_value,
+                  ._get_icon = _get_icon,
+                  ._preprocess_input = NULL,
+                  .private_data = NULL,
+                  .free = NULL,
+                  .type = MODE_TYPE_SWITCHER};
+
+Mode drun_utils_mode = {.name = "drun-utils",
+                  .cfg_name_key = "display-drun-utils",
+                  ._init = drun_utils_mode_init,
+                  ._get_num_entries = drun_mode_get_num_entries,
+                  ._result = drun_mode_result,
+                  ._destroy = drun_mode_destroy,
+                  ._token_match = drun_token_match,
+                  ._get_message = drun_get_message,
+                  ._get_completion = drun_get_completion,
+                  ._get_display_value = _get_display_value,
+                  ._get_icon = _get_icon,
+                  ._preprocess_input = NULL,
+                  .private_data = NULL,
+                  .free = NULL,
+                  .type = MODE_TYPE_SWITCHER};    
+
+Mode drun_network_mode = {.name = "drun-network",
+                  .cfg_name_key = "display-drun-network",
+                  ._init = drun_network_mode_init,
+                  ._get_num_entries = drun_mode_get_num_entries,
+                  ._result = drun_mode_result,
+                  ._destroy = drun_mode_destroy,
+                  ._token_match = drun_token_match,
+                  ._get_message = drun_get_message,
+                  ._get_completion = drun_get_completion,
+                  ._get_display_value = _get_display_value,
+                  ._get_icon = _get_icon,
+                  ._preprocess_input = NULL,
+                  .private_data = NULL,
+                  .free = NULL,
+                  .type = MODE_TYPE_SWITCHER};    
+
+Mode drun_media_mode = {.name = "drun-media",
+                  .cfg_name_key = "display-drun-media",
+                  ._init = drun_media_mode_init,
+                  ._get_num_entries = drun_mode_get_num_entries,
+                  ._result = drun_mode_result,
+                  ._destroy = drun_mode_destroy,
+                  ._token_match = drun_token_match,
+                  ._get_message = drun_get_message,
+                  ._get_completion = drun_get_completion,
+                  ._get_display_value = _get_display_value,
+                  ._get_icon = _get_icon,
+                  ._preprocess_input = NULL,
+                  .private_data = NULL,
+                  .free = NULL,
+                  .type = MODE_TYPE_SWITCHER};  
+
+Mode drun_text_mode = {.name = "drun-text",
+                  .cfg_name_key = "display-drun-text",
+                  ._init = drun_text_mode_init,
+                  ._get_num_entries = drun_mode_get_num_entries,
+                  ._result = drun_mode_result,
+                  ._destroy = drun_mode_destroy,
+                  ._token_match = drun_token_match,
+                  ._get_message = drun_get_message,
+                  ._get_completion = drun_get_completion,
+                  ._get_display_value = _get_display_value,
+                  ._get_icon = _get_icon,
+                  ._preprocess_input = NULL,
+                  .private_data = NULL,
+                  .free = NULL,
+                  .type = MODE_TYPE_SWITCHER};  
 
 #endif // ENABLE_DRUN
