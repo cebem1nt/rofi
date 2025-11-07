@@ -88,7 +88,7 @@ struct _rofi_view_cache_state CacheState = {
     .entry_history_index = 0,
 };
 
-static char *get_matching_state(RofiViewState* state) {
+static char *get_matching_state(RofiViewState *state) {
   if (state->case_sensitive) {
     if (config.sort) {
       return "±";
@@ -297,6 +297,14 @@ void rofi_view_restart(RofiViewState *state) {
 }
 
 RofiViewState *rofi_view_get_active(void) { return current_active_menu; }
+
+textbox *rofi_view_get_active_text(void) {
+  RofiViewState *state = rofi_view_get_active();
+  if (state) {
+    return state->text;
+  }
+  return NULL;
+}
 
 void rofi_view_remove_active(RofiViewState *state) {
   if (state == current_active_menu) {
@@ -968,7 +976,8 @@ static void rofi_view_input_changed(void) {
 }
 
 #ifdef ENABLE_WAYLAND
-static void rofi_view_clipboard_callback(char *clipboard_data, G_GNUC_UNUSED void *user_data) {
+static void rofi_view_clipboard_callback(char *clipboard_data,
+                                         G_GNUC_UNUSED void *user_data) {
   RofiViewState *state = rofi_view_get_active();
   if (clipboard_data != NULL) {
     if (state != NULL) {
@@ -994,7 +1003,8 @@ static void rofi_view_trigger_global_action(KeyBindingAction action) {
 #endif
 #ifdef ENABLE_WAYLAND
     if (config.backend == DISPLAY_WAYLAND) {
-      display_get_clipboard_data(CLIPBOARD_PRIMARY, rofi_view_clipboard_callback, NULL);
+      display_get_clipboard_data(CLIPBOARD_PRIMARY,
+                                 rofi_view_clipboard_callback, NULL);
     }
 #endif
     break;
@@ -1009,7 +1019,8 @@ static void rofi_view_trigger_global_action(KeyBindingAction action) {
 #endif
 #ifdef ENABLE_WAYLAND
     if (config.backend == DISPLAY_WAYLAND) {
-      display_get_clipboard_data(CLIPBOARD_DEFAULT, rofi_view_clipboard_callback, NULL);
+      display_get_clipboard_data(CLIPBOARD_DEFAULT,
+                                 rofi_view_clipboard_callback, NULL);
     }
 #endif
     break;
@@ -1198,6 +1209,7 @@ static void rofi_view_trigger_global_action(KeyBindingAction action) {
   case MOVE_END:
   case REMOVE_TO_EOL:
   case REMOVE_TO_SOL:
+  case TRANSPOSE_CHARS:
   case REMOVE_WORD_BACK:
   case REMOVE_WORD_FORWARD:
   case REMOVE_CHAR_FORWARD:
@@ -1398,7 +1410,10 @@ void rofi_view_trigger_action(RofiViewState *state, BindingsScope scope,
   }
 }
 
-void rofi_view_handle_text(RofiViewState *state, char *text) {
+void rofi_view_handle_text(RofiViewState *state, const char *text) {
+  if (state == NULL || state->text == NULL) {
+    return;
+  }
   if (textbox_append_text(state->text, text, strlen(text))) {
     state->refilter = TRUE;
     rofi_view_input_changed();

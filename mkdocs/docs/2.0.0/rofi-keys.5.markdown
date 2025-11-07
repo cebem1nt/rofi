@@ -159,12 +159,6 @@ Delete till the start of line
 
 Default:  Control+u
 
-`kb-transpose-chars`
-
-Transpose (swap) the two characters before the cursor
-
-Default:  Control+t
-
 `kb-accept-entry`
 
 Accept entry

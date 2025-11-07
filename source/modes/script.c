@@ -26,6 +26,7 @@
  */
 
 /** The log domain of this dialog. */
+#include "glib.h"
 #define G_LOG_DOMAIN "Modes.Script"
 
 #include "modes/script.h"
@@ -77,6 +78,8 @@ typedef struct {
   gboolean keep_filter;
 
   gboolean use_hot_keys;
+
+  int switch_mode;
 } ScriptModePrivateData;
 
 /**
@@ -94,7 +97,8 @@ void dmenuscript_parse_entry_extras(G_GNUC_UNUSED Mode *sw,
     *(extra) = NULL;
     *(extra + 1) = NULL;
     if (strcasecmp(key, "icon") == 0) {
-      entry->icon_name = value;
+      entry->icon_name = g_strsplit(value,",", -1);
+      g_free(value);
     } else if (strcasecmp(key, "display") == 0) {
       entry->display = value;
     } else if (strcasecmp(key, "meta") == 0) {
@@ -128,6 +132,17 @@ void dmenuscript_parse_entry_extras(G_GNUC_UNUSED Mode *sw,
 /**
  * End of shared functions.
  */
+
+static void script_switch_mode(Mode *sw, char *value) {
+  int index = mode_lookup(value);
+  ScriptModePrivateData *pd = (ScriptModePrivateData *)sw->private_data;
+
+  if (index >= 0) {
+    pd->switch_mode = index;
+  } else {
+    g_warning("Mode \"%s\" not found, please make sure it's enabled.\n", value);
+  }
+}
 
 static void parse_header_entry(Mode *sw, char *line, ssize_t length) {
   ScriptModePrivateData *pd = (ScriptModePrivateData *)sw->private_data;
@@ -172,13 +187,16 @@ static void parse_header_entry(Mode *sw, char *line, ssize_t length) {
         g_warning("Failed to parse: '%s'", value);
         rofi_clear_error_messages();
       }
+    } else if (strcasecmp(line, "switch-mode") == 0) {
+      script_switch_mode(sw, value);
     }
   }
 }
 
 static DmenuScriptEntry *execute_executor(Mode *sw, char *arg,
                                           unsigned int *length, int value,
-                                          DmenuScriptEntry *entry) {
+                                          DmenuScriptEntry *entry,
+                                          char *input) {
   ScriptModePrivateData *pd = (ScriptModePrivateData *)sw->private_data;
   int fd = -1;
   GError *error = NULL;
@@ -206,6 +224,10 @@ static DmenuScriptEntry *execute_executor(Mode *sw, char *arg,
   }
   if (pd->data) {
     env = g_environ_setenv(env, "ROFI_DATA", pd->data, TRUE);
+  }
+
+  if (input != NULL) {
+    env = g_environ_setenv(env, "ROFI_INPUT", input, TRUE);
   }
 
   if (g_shell_parse_argv(sw->ed, &argc, &argv, &error)) {
@@ -300,7 +322,8 @@ static int script_mode_init(Mode *sw) {
     ScriptModePrivateData *pd = g_malloc0(sizeof(*pd));
     pd->delim = '\n';
     sw->private_data = (void *)pd;
-    pd->cmd_list = execute_executor(sw, NULL, &(pd->cmd_list_length), 0, NULL);
+    pd->cmd_list = execute_executor(sw, NULL, &(pd->cmd_list_length), 0, NULL, NULL);
+    pd->switch_mode = -1;
   }
   return TRUE;
 }
@@ -321,6 +344,19 @@ static void script_mode_reset_highlight(Mode *sw) {
   rmpd->active_list = NULL;
 }
 
+static void script_mode_free_entry_list (DmenuScriptEntry *list, unsigned int length )
+{
+    for ( unsigned int i = 0; i < length; i++){
+      g_free(list[i].entry);
+      g_strfreev(list[i].icon_name);
+      g_free(list[i].display);
+      g_free(list[i].meta);
+      g_free(list[i].info);
+
+    }
+    g_free(list);
+
+}
 static ModeMode script_mode_result(Mode *sw, int mretv, char **input,
                                    unsigned int selected_line) {
   ScriptModePrivateData *rmpd = (ScriptModePrivateData *)sw->private_data;
@@ -337,11 +373,12 @@ static ModeMode script_mode_result(Mode *sw, int mretv, char **input,
       if (selected_line != UINT32_MAX) {
         new_list = execute_executor(sw, rmpd->cmd_list[selected_line].entry,
                                     &new_length, 10 + (mretv & MENU_LOWER_MASK),
-                                    &(rmpd->cmd_list[selected_line]));
+                                    &(rmpd->cmd_list[selected_line]), *input);
       } else {
         if (rmpd->no_custom == FALSE) {
           new_list = execute_executor(sw, *input, &new_length,
-                                      10 + (mretv & MENU_LOWER_MASK), NULL);
+                                      10 + (mretv & MENU_LOWER_MASK), NULL,
+                                      *input);
         } else {
           return RELOAD_DIALOG;
         }
@@ -353,7 +390,7 @@ static ModeMode script_mode_result(Mode *sw, int mretv, char **input,
   } else if ((mretv & MENU_ENTRY_DELETE) && selected_line != UINT32_MAX) {
     script_mode_reset_highlight(sw);
     new_list = execute_executor(sw, rmpd->cmd_list[selected_line].entry, &new_length,
-                                3, &(rmpd->cmd_list[selected_line]));
+                                3, &(rmpd->cmd_list[selected_line]), *input);
   } else if ((mretv & MENU_OK) && rmpd->cmd_list[selected_line].entry != NULL) {
     if (rmpd->cmd_list[selected_line].nonselectable) {
       return RELOAD_DIALOG;
@@ -361,27 +398,28 @@ static ModeMode script_mode_result(Mode *sw, int mretv, char **input,
     script_mode_reset_highlight(sw);
     new_list =
         execute_executor(sw, rmpd->cmd_list[selected_line].entry, &new_length,
-                         1, &(rmpd->cmd_list[selected_line]));
+                         1, &(rmpd->cmd_list[selected_line]), *input);
   } else if ((mretv & MENU_CUSTOM_INPUT) && *input != NULL) {
     if (rmpd->no_custom == FALSE) {
       script_mode_reset_highlight(sw);
-      new_list = execute_executor(sw, *input, &new_length, 2, NULL);
+      new_list = execute_executor(sw, *input, &new_length, 2, NULL, *input);
     } else {
       return RELOAD_DIALOG;
     }
   }
 
+  if (rmpd->switch_mode >= 0) {
+    script_mode_free_entry_list(new_list, new_length);
+    retv = rmpd->switch_mode;
+    free(*input);
+    *input = NULL;
+    rmpd->switch_mode = -1;
+    return retv;
+  }
+
   // If a new list was generated, use that an loop around.
   if (new_list != NULL) {
-    for (unsigned int i = 0; i < rmpd->cmd_list_length; i++) {
-      g_free(rmpd->cmd_list[i].entry);
-      g_free(rmpd->cmd_list[i].icon_name);
-      g_free(rmpd->cmd_list[i].display);
-      g_free(rmpd->cmd_list[i].meta);
-      g_free(rmpd->cmd_list[i].info);
-    }
-    g_free(rmpd->cmd_list);
-
+    script_mode_free_entry_list(rmpd->cmd_list, rmpd->cmd_list_length);
     rmpd->cmd_list = new_list;
     rmpd->cmd_list_length = new_length;
     if (keep_selection) {
@@ -407,13 +445,7 @@ static ModeMode script_mode_result(Mode *sw, int mretv, char **input,
 static void script_mode_destroy(Mode *sw) {
   ScriptModePrivateData *rmpd = (ScriptModePrivateData *)sw->private_data;
   if (rmpd != NULL) {
-    for (unsigned int i = 0; i < rmpd->cmd_list_length; i++) {
-      g_free(rmpd->cmd_list[i].entry);
-      g_free(rmpd->cmd_list[i].icon_name);
-      g_free(rmpd->cmd_list[i].display);
-      g_free(rmpd->cmd_list[i].meta);
-    }
-    g_free(rmpd->cmd_list);
+    script_mode_free_entry_list(rmpd->cmd_list, rmpd->cmd_list_length);
     g_free(rmpd->message);
     g_free(rmpd->prompt);
     g_free(rmpd->data);
@@ -518,20 +550,46 @@ static cairo_surface_t *script_get_icon(const Mode *sw,
                                         unsigned int height) {
   ScriptModePrivateData *pd =
       (ScriptModePrivateData *)mode_get_private_data(sw);
+
   const guint scale = display_scale();
+
   g_return_val_if_fail(pd->cmd_list != NULL, NULL);
   DmenuScriptEntry *dr = &(pd->cmd_list[selected_line]);
   if (dr->icon_name == NULL) {
     return NULL;
   }
-  if (dr->icon_fetch_uid > 0 && dr->icon_fetch_size == height &&
-      dr->icon_fetch_scale == scale) {
-    return rofi_icon_fetcher_get(dr->icon_fetch_uid);
+
+  if (dr->icon_fetch_uid > 0) {
+    cairo_surface_t *surface = NULL;
+    gboolean query_done = rofi_icon_fetcher_get_ex(dr->icon_fetch_uid, &surface);
+
+    if (surface != NULL) {
+      return surface;
+    } else if (query_done) {
+      dr->icon_fallback_index++;
+      dr->icon_fetch_uid = 0;
+    } else {
+      return NULL;
+    }
   }
-  dr->icon_fetch_uid = rofi_icon_fetcher_query(dr->icon_name, height);
-  dr->icon_fetch_size = height;
-  dr->icon_fetch_scale = scale;
-  return rofi_icon_fetcher_get(dr->icon_fetch_uid);
+
+  char *current_icon = NULL;
+  if (dr->icon_name && dr->icon_fallback_index >= 0) {
+      int icon_count = g_strv_length(dr->icon_name);
+      if (dr->icon_fallback_index < icon_count) {
+          current_icon = dr->icon_name[dr->icon_fallback_index];
+      }
+  }
+  if ( current_icon ){
+    dr->icon_fetch_uid = rofi_icon_fetcher_query(current_icon, height);
+    dr->icon_fetch_size = height;
+    dr->icon_fetch_scale = scale;
+
+  } else {
+    dr->icon_fetch_uid = 0;
+  }
+
+  return NULL;
 }
 
 #include "mode-private.h"

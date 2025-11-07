@@ -180,11 +180,6 @@ Default:  Autodetect
 
 The X server to contact. Default is `$DISPLAY`.
 
-`-wayland-layer` *layer*
-
-On Wayland, specifies the layer where rofi is rendered. Available layers are
-`background`, `bottom`, `top`, `overlay`. The default layer is `overlay`.
-
 `-dmenu`
 
 Run **rofi** in dmenu mode. This allows for interactive scripts.
@@ -377,12 +372,9 @@ The matching up/down keybinding allows cycling through at runtime.
 
 Note: glob matching might be slow for larger lists
 
-`-[no-]tokenize`
+`-tokenize`
 
-Tokenize the input into words, each word is matched separately with each entry.
-If enabled the search `test this` will match the entry `this test`.
-
-Default: enabled
+Tokenize the input.
 
 `-drun-categories` *category1*,*category2*
 
@@ -1173,6 +1165,7 @@ KeyPress event, because the keyboard/pointer is still grabbed. For these
 situations, the `--release` flag can be used, as it will execute the command
 after the keys have been released.
 
+
 ## Hyprland
 
 Hyprland's animations make the launching of **Rofi** feel slower then needed.
@@ -1181,7 +1174,6 @@ To avoid this, add the following rule to your hyprland.conf file:
 ```
 layerrule = noanim,^(rofi)$
 ```
-
 This disables the animations on the **Rofi** window.
 
 ## LICENSE

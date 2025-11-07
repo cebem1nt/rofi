@@ -30,6 +30,7 @@
 
 #include "mode.h"
 #include "widgets/widget.h"
+#include "widgets/textbox.h"
 #include <pango/pango.h>
 #ifdef ENABLE_XCB
 #include <xcb/xcb.h>
@@ -107,7 +108,7 @@ unsigned int rofi_view_get_next_position(const RofiViewState *state);
  *
  * Update the state if needed.
  */
-void rofi_view_handle_text(RofiViewState *state, char *text);
+void rofi_view_handle_text(RofiViewState *state, const char *text);
 /**
  * @param state the Menu handle
  * @param x The X coordinates of the motion
@@ -212,6 +213,13 @@ void rofi_view_free(RofiViewState *state);
 RofiViewState *rofi_view_get_active(void);
 
 /**
+  * Get the current active textbox with the user input.
+  *
+  * @returns the active textbox or NULL
+  */
+textbox *rofi_view_get_active_text(void);
+
+/**
  * @param state the new active view handle.
  *
  * Set the current active view Handle, If NULL passed a queued  view is popped
@@ -294,7 +302,7 @@ void rofi_view_set_overlay(RofiViewState *state, const char *text);
  * Overlays text over the current view. Passing NULL for text hides the overlay.
  * This message is automatically removed after X seconds.
  */
-void rofi_view_set_overlay_timeout (RofiViewState *state, const char *text);
+void rofi_view_set_overlay_timeout(RofiViewState *state, const char *text);
 
 /**
  * @param state The handle to the view.
