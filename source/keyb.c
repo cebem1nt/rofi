@@ -24,8 +24,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "keyb.h"
 #include "config.h"
+#include "keyb.h"
 #include "rofi.h"
 #include "xrmoptions.h"
 #include <glib.h>
@@ -208,10 +208,10 @@ ActionBindingEntry rofi_bindings[] = {
     {.id = TOGGLE_SORT,
      .name = "kb-toggle-sort",
      .binding = "Alt+grave",
-     .comment = "Toggle sort"},
+    .comment = "Toggle sort"},
     {.id = CANCEL,
      .name = "kb-cancel",
-     .binding = "Escape,Control+g,Control+bracketleft",
+     .binding = "Escape,Control+g,Control+bracketleft,MouseSecondary",
      .comment = "Quit rofi"},
     {.id = CUSTOM_1,
      .name = "kb-custom-1",

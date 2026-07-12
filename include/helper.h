@@ -267,6 +267,33 @@ char *rofi_latin_to_utf8_strdup(const char *input, gssize length);
  */
 int rofi_scorer_fuzzy_evaluate(const char *pattern, glong plen, const char *str,
                                glong slen, const int case_sensitive);
+
+/**
+ * @param pattern   The user input to match against.
+ * @param plen      Pattern length.
+ * @param str       The input to match against pattern.
+ * @param slen      Length of str.
+ * @param case_sensitive Whether case is significant.
+ *
+ *  rofi_scorer_fzf_v2_evaluate is a port of fzf's default fuzzy scoring
+ * algorithm (FuzzyMatchV2 from junegunn/fzf). Unlike
+ * rofi_scorer_fuzzy_evaluate, it aims to match fzf's ranking: it rewards
+ * contiguous matches and word-boundary/camelCase starts with fzf's own
+ * weights and gap penalties, without penalising how deep in the string the
+ * match begins.
+ *
+ * Whitespace-separated terms in `pattern` are treated as independent AND
+ * conditions: each term is scored separately against `str` and the scores are
+ * summed, exactly like fzf. A line matches only if every term matches.
+ *
+ * A higher return value is a better match. FZF_V2_MIN_SCORE is returned when any
+ * term is not a subsequence of `str`.
+ *
+ * @returns the fzf match score (higher is better).
+ */
+int rofi_scorer_fzf_v2_evaluate(const char *pattern, glong plen,
+                                const char *str, glong slen,
+                                int case_sensitive);
 /*@}*/
 
 /**
@@ -309,6 +336,21 @@ typedef struct {
  * @param error_precmd Prefix to error message command.
  * @param error_cmd Error message command
  * @param context The startup notification context, if any
+ * @param envp The environment to launch the application with.
+ *
+ * Executes the command
+ *
+ * @returns TRUE when successful, FALSE when failed.
+ */
+gboolean helper_execute_env(const char *wd, char **args,
+                            const char *error_precmd, const char *error_cmd,
+                            RofiHelperExecuteContext *context, gchar **envp);
+/**
+ * @param wd   The working directory.
+ * @param args The arguments of the command to exec.
+ * @param error_precmd Prefix to error message command.
+ * @param error_cmd Error message command
+ * @param context The startup notification context, if any
  *
  * Executes the command
  *
@@ -333,6 +375,22 @@ gboolean helper_execute_command(const char *wd, const char *cmd,
                                 gboolean run_in_term,
                                 RofiHelperExecuteContext *context);
 
+/**
+ * @param wd The work directory (optional)
+ * @param cmd The cmd to execute
+ * @param run_in_term Indicate if command should be run in a terminal
+ * @param context The startup notification context, if any
+ * @param envp  The environment to launch the application with
+ *
+ * Execute command.
+ * If needed members of context are NULL, they will be filled.
+ *
+ * @returns FALSE On failure, TRUE on success
+ */
+gboolean helper_execute_command_env(const char *wd, const char *cmd,
+                                    gboolean run_in_term,
+                                    RofiHelperExecuteContext *context,
+                                    char **envp);
 /**
  * @param file The file path
  * @param height The wanted height

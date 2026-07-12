@@ -76,6 +76,9 @@
 
 #endif
 
+// Limit the max stdin input to 4gb.
+#define ROFI_MAX_DMENU_INPUT UINT32_MAX
+
 /** Location of pidfile for this instance. */
 char *pidfile = NULL;
 /** Location of Cache directory. */
@@ -298,9 +301,13 @@ static void print_list_of_modes(int is_term) {
         break;
       }
     }
-    printf("        • %s%s%s%s\n", active ? "+" : "",
+    printf("        • %s%s%s%s", active ? "+" : "",
            is_term ? (active ? color_green : color_red) : "",
            mode_get_name(available_modes[i]), is_term ? color_reset : "");
+    if (mode_plugin_get_module(available_modes[i]) != NULL) {
+      printf(" (external)");
+    }
+    printf("\n");
   }
 }
 static void print_main_application_options(int is_term) {
@@ -349,7 +356,7 @@ static void print_main_application_options(int is_term) {
                  is_term);
 }
 
-static void print_backend_info() {
+static void print_backend_info(void) {
   int is_term = isatty(fileno(stdout));
   printf("Display backends:\n");
 #ifdef ENABLE_XCB
@@ -843,8 +850,9 @@ static gboolean startup(G_GNUC_UNUSED gpointer data) {
   if (list_of_warning_msgs != NULL) {
     for (GList *iter = g_list_first(list_of_warning_msgs); iter != NULL;
          iter = g_list_next(iter)) {
-      fputs(((GString *)iter->data)->str, stderr);
-      fputs("\n", stderr);
+      g_warning(((GString*)iter->data)->str, NULL);
+      //fputs(((GString *)iter->data)->str, stderr);
+      //fputs("\n", stderr);
     }
   }
   // Dmenu mode.
@@ -866,11 +874,14 @@ static gboolean startup(G_GNUC_UNUSED gpointer data) {
     if (g_strcmp0(msg, "-") == 0) {
       size_t index = 0, i = 0;
       size_t length = 1024;
-      msg = malloc(length * sizeof(char));
+      msg = g_malloc(length * sizeof(char));
       while ((i = fread(&msg[index], 1, 1024, stdin)) > 0) {
         index += i;
         length += i;
-        msg = realloc(msg, length * sizeof(char));
+        if (length >= ROFI_MAX_DMENU_INPUT) {
+          break;
+        }
+        msg = g_realloc(msg, length * sizeof(char));
       }
 
       msg[index] = 0;

@@ -306,6 +306,15 @@ textbox *rofi_view_get_active_text(void) {
   return NULL;
 }
 
+void rofi_view_cancel(RofiViewState *state) {
+  if (state == NULL) {
+    return;
+  }
+
+  state->retv = MENU_CANCEL;
+  state->quit = TRUE;
+}
+
 void rofi_view_remove_active(RofiViewState *state) {
   if (state == current_active_menu) {
     rofi_view_set_active(NULL);
@@ -461,12 +470,17 @@ static void filter_elements(thread_state *ts,
     if (match) {
       t->state->line_map[t->start + t->count] = i;
       if (config.sort) {
-        // This is inefficient, need to fix it.
         char *str = mode_get_completion(t->state->sw, i);
         glong slen = g_utf8_strlen(str, -1);
         switch (config.sorting_method_enum) {
         case SORT_FZF:
           t->state->distance[i] = rofi_scorer_fuzzy_evaluate(
+              t->pattern, t->plen, str, slen, t->state->case_sensitive);
+          break;
+        case SORT_FZF_V2:
+          /* The scorer returns a higher-is-better score; the sort orders by
+           * ascending distance, so negate it. */
+          t->state->distance[i] = -rofi_scorer_fzf_v2_evaluate(
               t->pattern, t->plen, str, slen, t->state->case_sensitive);
           break;
         case SORT_NORMAL:
@@ -2192,3 +2206,7 @@ void rofi_view_get_size(RofiViewState *state, gint *width, gint *height) {
 void rofi_view_ping_mouse(RofiViewState *state) { proxy->ping_mouse(state); }
 
 void rofi_view_pool_refresh(void) { proxy->pool_refresh(); }
+
+void rofi_view_get_menu_rect(int *x, int *y, int *w, int *h) {
+  proxy->get_menu_rect(x, y, w, h);
+}
